@@ -254,7 +254,7 @@ type SQLSpec struct {
 	// +optional
 	GCPServiceAccount *string `json:"gcpServiceAccount,omitempty"`
 	// PasswordCommand configures an external command to fetch the database password.
-	// Unused if PasswordSecretRef is set. Requires Temporal >= 1.31.0.
+	// Overrides PasswordSecretRef for non-migration operations if set. Requires Temporal >= 1.31.0.
 	// +optional
 	PasswordCommand *PasswordCommandSpec `json:"passwordCommand,omitempty"`
 }
