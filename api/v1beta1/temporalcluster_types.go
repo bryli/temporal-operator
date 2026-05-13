@@ -253,6 +253,25 @@ type SQLSpec struct {
 	// GCPServiceAccount is the service account to use to authenticate with GCP CloudSQL.
 	// +optional
 	GCPServiceAccount *string `json:"gcpServiceAccount,omitempty"`
+	// PasswordCommand configures an external command to fetch the database password.
+	// Unused if PasswordSecretRef is set. Requires Temporal >= 1.31.0.
+	// +optional
+	PasswordCommand *PasswordCommandSpec `json:"passwordCommand,omitempty"`
+}
+
+// PasswordCommandSpec configures an external command to fetch the datastore password.
+// Allows for the use of short-lived IAM tokens (e.g. AWS RDS IAM).
+type PasswordCommandSpec struct {
+	// Command is the path to the executable to run.
+	// +required
+	Command string `json:"command"`
+	// Args is the list of arguments to pass to the command.
+	// +optional
+	Args []string `json:"args,omitempty"`
+	// Timeout is the maximum duration to wait for the command to complete.
+	// Defaults to 30 seconds if unset.
+	// +optional
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
 }
 
 // DatastoreTLSSpec contains datastore TLS connections specifications.
@@ -393,7 +412,7 @@ type DatastoreSpec struct {
 	// Note that cassandra is now deprecated for visibility store.
 	// +optional
 	Cassandra *CassandraSpec `json:"cassandra,omitempty"`
-	// PasswordSecret is the reference to the secret holding the password.
+	// PasswordSecret is the reference to the secret holding the password. Unused if PasswordCommand is set.
 	// +optional
 	PasswordSecretRef *SecretKeyReference `json:"passwordSecretRef,omitempty"`
 	// TLS is an optional option to connect to the datastore using TLS.

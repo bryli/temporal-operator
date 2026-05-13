@@ -221,6 +221,29 @@ func (w *TemporalClusterWebhook) validateCluster(cluster *v1beta1.TemporalCluste
 		}
 	}
 
+	// Validate passwordCommand usage requires >= 1.31.0 and is only for SQL datastores.
+	if !cluster.Spec.Version.GreaterOrEqual(version.V1_31_0) {
+		for name, store := range cluster.Spec.Persistence.GetDatastoresMap() {
+			if store != nil && store.SQL != nil && store.SQL.PasswordCommand != nil {
+				errs = append(errs,
+					field.Forbidden(
+						field.NewPath("spec", "persistence", name, "sql", "passwordCommand"),
+						"temporal cluster version < 1.31.0 doesn't support passwordCommand",
+					),
+				)
+			}
+		}
+	}
+
+	// Warn when passwordCommand is used without passwordSecretRef for schema jobs.
+	for name, store := range cluster.Spec.Persistence.GetDatastoresMap() {
+		if store != nil && store.SQL != nil && store.SQL.PasswordCommand != nil && store.PasswordSecretRef == nil {
+			warns = append(warns,
+				fmt.Sprintf("Datastore %q uses passwordCommand without passwordSecretRef. Schema creation/migration jobs will not have database credentials. Consider setting skipCreate or providing passwordSecretRef for schema operations.", name),
+			)
+		}
+	}
+
 	// Check new features introduced in cluster version >= 1.20 are not enabled for older version.
 	if !cluster.Spec.Version.GreaterOrEqual(version.V1_20_0) {
 		// Ensure Internal Frontend is only enabled for cluster version >= 1.20
