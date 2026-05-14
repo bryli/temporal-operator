@@ -1148,7 +1148,9 @@ SecretKeyReference
 </td>
 <td>
 <em>(Optional)</em>
-<p>PasswordSecret is the reference to the secret holding the password.</p>
+<p>PasswordSecretRef is the reference to the secret holding the password.
+Used by both server runtime and schema setup/migration jobs.
+Overridden by PasswordCommand for the server runtime only.</p>
 </td>
 </tr>
 <tr>
@@ -2271,6 +2273,66 @@ Defaults to the namespace of the requested resource if omitted.</p>
 </table>
 </div>
 </div>
+<h3 id="temporal.io/v1beta1.PasswordCommandSpec">PasswordCommandSpec
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#temporal.io/v1beta1.SQLSpec">SQLSpec</a>)
+</p>
+<p>PasswordCommandSpec configures an external command to fetch the datastore password.
+Allows for the use of short-lived IAM tokens (e.g. AWS RDS IAM).</p>
+<div class="md-typeset__scrollwrap">
+<div class="md-typeset__table">
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>command</code><br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Command is the path to the executable to run.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>args</code><br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Args is the list of arguments to pass to the command.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>timeout</code><br>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Timeout is the maximum duration to wait for the command to complete.
+Defaults to 30 seconds if unset.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 <h3 id="temporal.io/v1beta1.PodTemplateSpecOverride">PodTemplateSpecOverride
 </h3>
 <p>
@@ -2866,6 +2928,23 @@ string
 <td>
 <em>(Optional)</em>
 <p>GCPServiceAccount is the service account to use to authenticate with GCP CloudSQL.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>passwordCommand</code><br>
+<em>
+<a href="#temporal.io/v1beta1.PasswordCommandSpec">
+PasswordCommandSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PasswordCommand configures an external command to fetch the database password dynamically.
+The command is executed for each new database connection, allowing for the use of short-lived IAM tokens.
+This applies to the Temporal server runtime only (not schema setup/migration jobs) and overrides PasswordSecretRef for that purpose
+Requires Temporal &gt;= 1.31.0.</p>
 </td>
 </tr>
 </tbody>
@@ -5297,6 +5376,32 @@ TemporalNamespaceArchivalSpec
 If not set, the default cluster configuration is used.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>customSearchAttributes</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CustomSearchAttributes is an optional mapping of custom search attribute names to types.
+Supported types: Text, Keyword, Int, Double, Bool, DateTime, KeywordList.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>allowSearchAttributeDeletion</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AllowSearchAttributeDeletion makes the controller remove custom search attributes
+from the Temporal server if they are not present in the spec.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -5519,6 +5624,32 @@ TemporalNamespaceArchivalSpec
 <em>(Optional)</em>
 <p>Archival is a per-namespace archival configuration.
 If not set, the default cluster configuration is used.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>customSearchAttributes</code><br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CustomSearchAttributes is an optional mapping of custom search attribute names to types.
+Supported types: Text, Keyword, Int, Double, Bool, DateTime, KeywordList.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>allowSearchAttributeDeletion</code><br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AllowSearchAttributeDeletion makes the controller remove custom search attributes
+from the Temporal server if they are not present in the spec.</p>
 </td>
 </tr>
 </tbody>
