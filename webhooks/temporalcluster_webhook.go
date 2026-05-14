@@ -237,9 +237,9 @@ func (w *TemporalClusterWebhook) validateCluster(cluster *v1beta1.TemporalCluste
 
 	// Warn when passwordCommand is used without passwordSecretRef for schema jobs.
 	for name, store := range cluster.Spec.Persistence.GetDatastoresMap() {
-		if store != nil && store.SQL != nil && store.SQL.PasswordCommand != nil && store.PasswordSecretRef == nil {
+		if store != nil && store.SQL != nil && store.SQL.PasswordCommand != nil && store.PasswordSecretRef == nil && !store.SkipCreate {
 			warns = append(warns,
-				fmt.Sprintf("Datastore %q uses passwordCommand without passwordSecretRef. Schema creation/migration jobs will not have database credentials. Consider setting skipCreate or providing passwordSecretRef for schema operations.", name),
+				fmt.Sprintf("Datastore %q uses passwordCommand without passwordSecretRef. Schema creation/migration jobs will not have database credentials. Set skipCreate to manage schema externally, or provide passwordSecretRef for schema operations.", name),
 			)
 		}
 	}

@@ -254,12 +254,8 @@ type SQLSpec struct {
 	// +optional
 	GCPServiceAccount *string `json:"gcpServiceAccount,omitempty"`
 	// PasswordCommand configures an external command to fetch the database password dynamically.
-	// The command is re-executed on each new database connection, enabling short-lived IAM tokens
-	// (e.g. AWS RDS IAM, GCP CloudSQL IAM) to be used as database passwords.
-	// This applies to the Temporal server runtime only (not schema setup/migration jobs).
-	// When set, the server config uses passwordCommand instead of the static password
-	// from passwordSecretRef (defined on DatastoreSpec). However, passwordSecretRef is still
-	// used by schema jobs, so both may be set together.
+	// The command is executed for each new database connection, allowing for the use of short-lived IAM tokens.
+	// This applies to the Temporal server runtime only (not schema setup/migration jobs) and overrides PasswordSecretRef for that purpose
 	// Requires Temporal >= 1.31.0.
 	// +optional
 	PasswordCommand *PasswordCommandSpec `json:"passwordCommand,omitempty"`
@@ -419,10 +415,8 @@ type DatastoreSpec struct {
 	// +optional
 	Cassandra *CassandraSpec `json:"cassandra,omitempty"`
 	// PasswordSecretRef is the reference to the secret holding the password.
-	// Used by schema setup/migration jobs (via --password flag) and, when sql.passwordCommand
-	// is not set, also by the Temporal server runtime config.
-	// When sql.passwordCommand is set, the server runtime uses that instead, but
-	// passwordSecretRef is still needed for schema jobs unless skipCreate is true.
+	// Used by both server runtime and schema setup/migration jobs.
+	// Overridden by PasswordCommand for the server runtime only.
 	// +optional
 	PasswordSecretRef *SecretKeyReference `json:"passwordSecretRef,omitempty"`
 	// TLS is an optional option to connect to the datastore using TLS.
