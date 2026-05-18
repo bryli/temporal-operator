@@ -254,9 +254,14 @@ type SQLSpec struct {
 	// +optional
 	GCPServiceAccount *string `json:"gcpServiceAccount,omitempty"`
 	// PasswordCommand configures an external command to fetch the database password dynamically.
-	// The command is executed for each new database connection, allowing for the use of short-lived IAM tokens.
-	// This applies to the Temporal server runtime only (not schema setup/migration jobs) and overrides PasswordSecretRef for that purpose
-	// Requires Temporal >= 1.31.0.
+	// The command is re-executed on each new database connection, enabling short-lived IAM tokens
+	// (e.g. AWS RDS IAM, GCP CloudSQL IAM) to be used as database passwords.
+	// For the Temporal server runtime, this is handled natively via config.SQL.PasswordCommand.
+	// For schema setup/migration jobs, the operator executes the command in the job script
+	// and passes the result via --password.
+	// When passwordSecretRef (on DatastoreSpec) is also set, schema jobs use the static
+	// secret instead of executing this command.
+	// Requires Temporal >= 1.31.0. The admin-tools image must contain the command binary.
 	// +optional
 	PasswordCommand *PasswordCommandSpec `json:"passwordCommand,omitempty"`
 }
@@ -415,8 +420,11 @@ type DatastoreSpec struct {
 	// +optional
 	Cassandra *CassandraSpec `json:"cassandra,omitempty"`
 	// PasswordSecretRef is the reference to the secret holding the password.
-	// Used by both server runtime and schema setup/migration jobs.
-	// Overridden by PasswordCommand for the server runtime only.
+	// Used by the server runtime config and schema setup/migration jobs.
+	// When sql.passwordCommand is also set, the server runtime uses passwordCommand instead,
+	// and schema jobs prefer the static secret from passwordSecretRef over executing
+	// passwordCommand. If only passwordCommand is set (no passwordSecretRef), schema jobs
+	// execute the command to fetch credentials.
 	// +optional
 	PasswordSecretRef *SecretKeyReference `json:"passwordSecretRef,omitempty"`
 	// TLS is an optional option to connect to the datastore using TLS.
