@@ -146,14 +146,11 @@ func TestPasswordCommandPrefix(t *testing.T) {
 		assert.Empty(t, result)
 	})
 
-	t.Run("returns empty when passwordSecretRef takes precedence", func(t *testing.T) {
+	t.Run("returns empty when SQL has no passwordCommand", func(t *testing.T) {
 		spec := &v1beta1.DatastoreSpec{
 			Name: "default",
 			SQL: &v1beta1.SQLSpec{
-				PasswordCommand: &v1beta1.PasswordCommandSpec{
-					Command: "/usr/bin/aws",
-					Args:    []string{"rds", "generate-db-auth-token"},
-				},
+				User: "temporal",
 			},
 			PasswordSecretRef: &v1beta1.SecretKeyReference{
 				Name: "my-secret",

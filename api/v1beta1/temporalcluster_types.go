@@ -259,8 +259,7 @@ type SQLSpec struct {
 	// For the Temporal server runtime, this is handled natively via config.SQL.PasswordCommand.
 	// For schema setup/migration jobs, the operator executes the command in the job script
 	// and passes the result via --password.
-	// When passwordSecretRef (on DatastoreSpec) is also set, schema jobs use the static
-	// secret instead of executing this command.
+	// Mutually exclusive with passwordSecretRef on the parent DatastoreSpec.
 	// Requires Temporal >= 1.31.0. The admin-tools image must contain the command binary.
 	// +optional
 	PasswordCommand *PasswordCommandSpec `json:"passwordCommand,omitempty"`
@@ -421,10 +420,7 @@ type DatastoreSpec struct {
 	Cassandra *CassandraSpec `json:"cassandra,omitempty"`
 	// PasswordSecretRef is the reference to the secret holding the password.
 	// Used by the server runtime config and schema setup/migration jobs.
-	// When sql.passwordCommand is also set, the server runtime uses passwordCommand instead,
-	// and schema jobs prefer the static secret from passwordSecretRef over executing
-	// passwordCommand. If only passwordCommand is set (no passwordSecretRef), schema jobs
-	// execute the command to fetch credentials.
+	// Mutually exclusive with sql.passwordCommand.
 	// +optional
 	PasswordSecretRef *SecretKeyReference `json:"passwordSecretRef,omitempty"`
 	// TLS is an optional option to connect to the datastore using TLS.

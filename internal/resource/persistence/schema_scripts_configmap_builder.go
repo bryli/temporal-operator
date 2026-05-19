@@ -196,13 +196,10 @@ func (b *SchemaScriptsConfigmapBuilder) getSQLArgs(spec *v1beta1.DatastoreSpec) 
 
 // passwordCommandPrefix builds a shell line that fetches the database password
 // by executing the configured passwordCommand and exporting it as the datastore's
-// password environment variable. Returns empty string if passwordCommand is not set
-// or if passwordSecretRef is set (static secret takes precedence for schema jobs).
+// password environment variable. Returns empty string if passwordCommand is not set.
+// Note: passwordCommand and passwordSecretRef are mutually exclusive (enforced by webhook).
 func (b *SchemaScriptsConfigmapBuilder) passwordCommandPrefix(spec *v1beta1.DatastoreSpec) string {
 	if spec.SQL == nil || spec.SQL.PasswordCommand == nil {
-		return ""
-	}
-	if spec.PasswordSecretRef != nil {
 		return ""
 	}
 
