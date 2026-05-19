@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.3
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: temporalclusters.temporal.io
 spec:
   group: temporal.io
@@ -129,7 +129,7 @@ spec:
                             Claims lists the names of resources, defined in spec.resourceClaims,
                             that are used by this container.
 
-                            This is an alpha field and requires enabling the
+                            This field depends on the
                             DynamicResourceAllocation feature gate.
 
                             This field is immutable. It can only be set for containers.
@@ -486,7 +486,7 @@ spec:
                         Claims lists the names of resources, defined in spec.resourceClaims,
                         that are used by this container.
 
-                        This is an alpha field and requires enabling the
+                        This field depends on the
                         DynamicResourceAllocation feature gate.
 
                         This field is immutable. It can only be set for containers.
@@ -2029,7 +2029,7 @@ spec:
                                     - LOCAL_QUORUM
                                     - EACH_QUORUM
                                     - LOCAL_ONE
-                                  type: integer
+                                  type: string
                                 serialConsistency:
                                   description: |-
                                     SerialConsistency sets the consistency for the serial prtion of queries. Values identical to gocql SerialConsistency values.
@@ -2037,7 +2037,7 @@ spec:
                                   enum:
                                     - SERIAL
                                     - LOCAL_SERIAL
-                                  type: integer
+                                  type: string
                               type: object
                             datacenter:
                               description: Datacenter is the data center filter arg for cassandra.
@@ -2123,7 +2123,13 @@ spec:
                             "advancedVisibility" for advanced visibility store.
                           type: string
                         passwordSecretRef:
-                          description: PasswordSecret is the reference to the secret holding the password.
+                          description: |-
+                            PasswordSecretRef is the reference to the secret holding the password.
+                            Used by the server runtime config and schema setup/migration jobs.
+                            When sql.passwordCommand is also set, the server runtime uses passwordCommand instead,
+                            and schema jobs prefer the static secret from passwordSecretRef over executing
+                            passwordCommand. If only passwordCommand is set (no passwordSecretRef), schema jobs
+                            execute the command to fetch credentials.
                           properties:
                             key:
                               description: Key in the Secret.
@@ -2166,6 +2172,34 @@ spec:
                             maxIdleConns:
                               description: MaxIdleConns is the max number of idle connections to this datastore.
                               type: integer
+                            passwordCommand:
+                              description: |-
+                                PasswordCommand configures an external command to fetch the database password dynamically.
+                                The command is re-executed on each new database connection, enabling short-lived IAM tokens
+                                (e.g. AWS RDS IAM, GCP CloudSQL IAM) to be used as database passwords.
+                                For the Temporal server runtime, this is handled natively via config.SQL.PasswordCommand.
+                                For schema setup/migration jobs, the operator executes the command in the job script
+                                and passes the result via --password.
+                                When passwordSecretRef (on DatastoreSpec) is also set, schema jobs use the static
+                                secret instead of executing this command.
+                                Requires Temporal >= 1.31.0. The admin-tools image must contain the command binary.
+                              properties:
+                                args:
+                                  description: Args is the list of arguments to pass to the command.
+                                  items:
+                                    type: string
+                                  type: array
+                                command:
+                                  description: Command is the path to the executable to run.
+                                  type: string
+                                timeout:
+                                  description: |-
+                                    Timeout is the maximum duration to wait for the command to complete.
+                                    Defaults to 30 seconds if unset.
+                                  type: string
+                              required:
+                                - command
+                              type: object
                             pluginName:
                               description: PluginName is the name of SQL plugin.
                               enum:
@@ -2267,7 +2301,7 @@ spec:
                                     - LOCAL_QUORUM
                                     - EACH_QUORUM
                                     - LOCAL_ONE
-                                  type: integer
+                                  type: string
                                 serialConsistency:
                                   description: |-
                                     SerialConsistency sets the consistency for the serial prtion of queries. Values identical to gocql SerialConsistency values.
@@ -2275,7 +2309,7 @@ spec:
                                   enum:
                                     - SERIAL
                                     - LOCAL_SERIAL
-                                  type: integer
+                                  type: string
                               type: object
                             datacenter:
                               description: Datacenter is the data center filter arg for cassandra.
@@ -2361,7 +2395,13 @@ spec:
                             "advancedVisibility" for advanced visibility store.
                           type: string
                         passwordSecretRef:
-                          description: PasswordSecret is the reference to the secret holding the password.
+                          description: |-
+                            PasswordSecretRef is the reference to the secret holding the password.
+                            Used by the server runtime config and schema setup/migration jobs.
+                            When sql.passwordCommand is also set, the server runtime uses passwordCommand instead,
+                            and schema jobs prefer the static secret from passwordSecretRef over executing
+                            passwordCommand. If only passwordCommand is set (no passwordSecretRef), schema jobs
+                            execute the command to fetch credentials.
                           properties:
                             key:
                               description: Key in the Secret.
@@ -2404,6 +2444,34 @@ spec:
                             maxIdleConns:
                               description: MaxIdleConns is the max number of idle connections to this datastore.
                               type: integer
+                            passwordCommand:
+                              description: |-
+                                PasswordCommand configures an external command to fetch the database password dynamically.
+                                The command is re-executed on each new database connection, enabling short-lived IAM tokens
+                                (e.g. AWS RDS IAM, GCP CloudSQL IAM) to be used as database passwords.
+                                For the Temporal server runtime, this is handled natively via config.SQL.PasswordCommand.
+                                For schema setup/migration jobs, the operator executes the command in the job script
+                                and passes the result via --password.
+                                When passwordSecretRef (on DatastoreSpec) is also set, schema jobs use the static
+                                secret instead of executing this command.
+                                Requires Temporal >= 1.31.0. The admin-tools image must contain the command binary.
+                              properties:
+                                args:
+                                  description: Args is the list of arguments to pass to the command.
+                                  items:
+                                    type: string
+                                  type: array
+                                command:
+                                  description: Command is the path to the executable to run.
+                                  type: string
+                                timeout:
+                                  description: |-
+                                    Timeout is the maximum duration to wait for the command to complete.
+                                    Defaults to 30 seconds if unset.
+                                  type: string
+                              required:
+                                - command
+                              type: object
                             pluginName:
                               description: PluginName is the name of SQL plugin.
                               enum:
@@ -2507,7 +2575,7 @@ spec:
                                     - LOCAL_QUORUM
                                     - EACH_QUORUM
                                     - LOCAL_ONE
-                                  type: integer
+                                  type: string
                                 serialConsistency:
                                   description: |-
                                     SerialConsistency sets the consistency for the serial prtion of queries. Values identical to gocql SerialConsistency values.
@@ -2515,7 +2583,7 @@ spec:
                                   enum:
                                     - SERIAL
                                     - LOCAL_SERIAL
-                                  type: integer
+                                  type: string
                               type: object
                             datacenter:
                               description: Datacenter is the data center filter arg for cassandra.
@@ -2601,7 +2669,13 @@ spec:
                             "advancedVisibility" for advanced visibility store.
                           type: string
                         passwordSecretRef:
-                          description: PasswordSecret is the reference to the secret holding the password.
+                          description: |-
+                            PasswordSecretRef is the reference to the secret holding the password.
+                            Used by the server runtime config and schema setup/migration jobs.
+                            When sql.passwordCommand is also set, the server runtime uses passwordCommand instead,
+                            and schema jobs prefer the static secret from passwordSecretRef over executing
+                            passwordCommand. If only passwordCommand is set (no passwordSecretRef), schema jobs
+                            execute the command to fetch credentials.
                           properties:
                             key:
                               description: Key in the Secret.
@@ -2644,6 +2718,34 @@ spec:
                             maxIdleConns:
                               description: MaxIdleConns is the max number of idle connections to this datastore.
                               type: integer
+                            passwordCommand:
+                              description: |-
+                                PasswordCommand configures an external command to fetch the database password dynamically.
+                                The command is re-executed on each new database connection, enabling short-lived IAM tokens
+                                (e.g. AWS RDS IAM, GCP CloudSQL IAM) to be used as database passwords.
+                                For the Temporal server runtime, this is handled natively via config.SQL.PasswordCommand.
+                                For schema setup/migration jobs, the operator executes the command in the job script
+                                and passes the result via --password.
+                                When passwordSecretRef (on DatastoreSpec) is also set, schema jobs use the static
+                                secret instead of executing this command.
+                                Requires Temporal >= 1.31.0. The admin-tools image must contain the command binary.
+                              properties:
+                                args:
+                                  description: Args is the list of arguments to pass to the command.
+                                  items:
+                                    type: string
+                                  type: array
+                                command:
+                                  description: Command is the path to the executable to run.
+                                  type: string
+                                timeout:
+                                  description: |-
+                                    Timeout is the maximum duration to wait for the command to complete.
+                                    Defaults to 30 seconds if unset.
+                                  type: string
+                              required:
+                                - command
+                              type: object
                             pluginName:
                               description: PluginName is the name of SQL plugin.
                               enum:
@@ -2745,7 +2847,7 @@ spec:
                                     - LOCAL_QUORUM
                                     - EACH_QUORUM
                                     - LOCAL_ONE
-                                  type: integer
+                                  type: string
                                 serialConsistency:
                                   description: |-
                                     SerialConsistency sets the consistency for the serial prtion of queries. Values identical to gocql SerialConsistency values.
@@ -2753,7 +2855,7 @@ spec:
                                   enum:
                                     - SERIAL
                                     - LOCAL_SERIAL
-                                  type: integer
+                                  type: string
                               type: object
                             datacenter:
                               description: Datacenter is the data center filter arg for cassandra.
@@ -2839,7 +2941,13 @@ spec:
                             "advancedVisibility" for advanced visibility store.
                           type: string
                         passwordSecretRef:
-                          description: PasswordSecret is the reference to the secret holding the password.
+                          description: |-
+                            PasswordSecretRef is the reference to the secret holding the password.
+                            Used by the server runtime config and schema setup/migration jobs.
+                            When sql.passwordCommand is also set, the server runtime uses passwordCommand instead,
+                            and schema jobs prefer the static secret from passwordSecretRef over executing
+                            passwordCommand. If only passwordCommand is set (no passwordSecretRef), schema jobs
+                            execute the command to fetch credentials.
                           properties:
                             key:
                               description: Key in the Secret.
@@ -2882,6 +2990,34 @@ spec:
                             maxIdleConns:
                               description: MaxIdleConns is the max number of idle connections to this datastore.
                               type: integer
+                            passwordCommand:
+                              description: |-
+                                PasswordCommand configures an external command to fetch the database password dynamically.
+                                The command is re-executed on each new database connection, enabling short-lived IAM tokens
+                                (e.g. AWS RDS IAM, GCP CloudSQL IAM) to be used as database passwords.
+                                For the Temporal server runtime, this is handled natively via config.SQL.PasswordCommand.
+                                For schema setup/migration jobs, the operator executes the command in the job script
+                                and passes the result via --password.
+                                When passwordSecretRef (on DatastoreSpec) is also set, schema jobs use the static
+                                secret instead of executing this command.
+                                Requires Temporal >= 1.31.0. The admin-tools image must contain the command binary.
+                              properties:
+                                args:
+                                  description: Args is the list of arguments to pass to the command.
+                                  items:
+                                    type: string
+                                  type: array
+                                command:
+                                  description: Command is the path to the executable to run.
+                                  type: string
+                                timeout:
+                                  description: |-
+                                    Timeout is the maximum duration to wait for the command to complete.
+                                    Defaults to 30 seconds if unset.
+                                  type: string
+                              required:
+                                - command
+                              type: object
                             pluginName:
                               description: PluginName is the name of SQL plugin.
                               enum:
@@ -3077,7 +3213,7 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-                                This is an alpha field and requires enabling the
+                                This field depends on the
                                 DynamicResourceAllocation feature gate.
 
                                 This field is immutable. It can only be set for containers.
@@ -3244,7 +3380,7 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-                                This is an alpha field and requires enabling the
+                                This field depends on the
                                 DynamicResourceAllocation feature gate.
 
                                 This field is immutable. It can only be set for containers.
@@ -3417,7 +3553,7 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-                                This is an alpha field and requires enabling the
+                                This field depends on the
                                 DynamicResourceAllocation feature gate.
 
                                 This field is immutable. It can only be set for containers.
@@ -3584,7 +3720,7 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-                                This is an alpha field and requires enabling the
+                                This field depends on the
                                 DynamicResourceAllocation feature gate.
 
                                 This field is immutable. It can only be set for containers.
@@ -3814,7 +3950,7 @@ spec:
                                 Claims lists the names of resources, defined in spec.resourceClaims,
                                 that are used by this container.
 
-                                This is an alpha field and requires enabling the
+                                This field depends on the
                                 DynamicResourceAllocation feature gate.
 
                                 This field is immutable. It can only be set for containers.
@@ -3998,7 +4134,7 @@ spec:
                             Claims lists the names of resources, defined in spec.resourceClaims,
                             that are used by this container.
 
-                            This is an alpha field and requires enabling the
+                            This field depends on the
                             DynamicResourceAllocation feature gate.
 
                             This field is immutable. It can only be set for containers.

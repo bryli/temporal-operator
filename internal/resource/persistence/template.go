@@ -59,21 +59,25 @@ var (
         `),
 		createDatabaseTemplate: dedent.Dedent(`
             #!/bin/bash
+            {{ .PasswordCommandPrefix }}
             {{ .Tool }} {{ .ConnectionArgs }} create-database -database {{ .DatabaseName }}
             {{ template "scripts" . }}
         `),
 		createDatabaseTemplateV1_18: dedent.Dedent(`
             #!/bin/bash
+            {{ .PasswordCommandPrefix }}
             {{ .Tool }} {{ .ConnectionArgs }} create
             {{ template "scripts" . }}
         `),
 		setupSchemaTemplate: dedent.Dedent(`
             #!/bin/bash
+            {{ .PasswordCommandPrefix }}
             {{ .Tool }} {{ .ConnectionArgs }} setup-schema -v {{ .InitialVersion }}
             {{ template "scripts" . }}
         `),
 		updateSchemaTemplate: dedent.Dedent(`
             #!/bin/bash
+            {{ .PasswordCommandPrefix }}
             {{ .Tool }} {{ .ConnectionArgs }} update-schema -d {{ .SchemaDir }}
             {{ template "scripts" . }}
         `),
@@ -390,8 +394,17 @@ type (
 		MTLSProvider string
 	}
 
-	createDatabase struct {
+	// sqlBaseData embeds baseData and adds fields common to all SQL schema scripts.
+	sqlBaseData struct {
 		baseData
+		// PasswordCommandPrefix is a shell line that fetches the password dynamically.
+		// When non-empty, it is emitted before the tool invocation, e.g.:
+		//   export TEMPORAL_DEFAULT_DATASTORE_PASSWORD=$(/usr/bin/aws rds generate-db-auth-token ...)
+		PasswordCommandPrefix string
+	}
+
+	createDatabase struct {
+		sqlBaseData
 		Tool           string
 		ConnectionArgs string
 		DatabaseName   string
@@ -405,14 +418,14 @@ type (
 	}
 
 	setupSchemaData struct {
-		baseData
+		sqlBaseData
 		Tool           string
 		ConnectionArgs string
 		InitialVersion string
 	}
 
 	updateSchemaData struct {
-		baseData
+		sqlBaseData
 		Tool           string
 		ConnectionArgs string
 		SchemaDir      string

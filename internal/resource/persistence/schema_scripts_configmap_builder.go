@@ -112,6 +112,13 @@ func (b *SchemaScriptsConfigmapBuilder) baseData() baseData {
 	return baseData
 }
 
+func (b *SchemaScriptsConfigmapBuilder) sqlBaseData(spec *v1beta1.DatastoreSpec) sqlBaseData {
+	return sqlBaseData{
+		baseData:              b.baseData(),
+		PasswordCommandPrefix: b.passwordCommandPrefix(spec),
+	}
+}
+
 func (b *SchemaScriptsConfigmapBuilder) computeSchemaDir(storeType v1beta1.DatastoreType, targetSchema Schema) string {
 	storeSchemaPath := ""
 	storeVersionSchemaPath := ""
@@ -169,7 +176,7 @@ func (b *SchemaScriptsConfigmapBuilder) getSQLArgs(spec *v1beta1.DatastoreSpec) 
 	args.Set(schema.CLIOptEndpoint, host)      // --endpoint
 	args.Set(schema.CLIOptPort, port)          // --port
 	args.Set(schema.CLIOptUser, spec.SQL.User) // --user
-	if spec.PasswordSecretRef != nil {
+	if spec.PasswordSecretRef != nil || spec.SQL.PasswordCommand != nil {
 		args.Set(schema.CLIOptPassword, fmt.Sprintf("$%s", spec.GetPasswordEnvVarName())) // --password
 	}
 	args.Set(schema.CLIOptDatabase, spec.SQL.DatabaseName) // --database
@@ -185,6 +192,28 @@ func (b *SchemaScriptsConfigmapBuilder) getSQLArgs(spec *v1beta1.DatastoreSpec) 
 	}
 
 	return args, nil
+}
+
+// passwordCommandPrefix builds a shell line that fetches the database password
+// by executing the configured passwordCommand and exporting it as the datastore's
+// password environment variable. Returns empty string if passwordCommand is not set.
+// Note: passwordCommand and passwordSecretRef are mutually exclusive (enforced by webhook).
+func (b *SchemaScriptsConfigmapBuilder) passwordCommandPrefix(spec *v1beta1.DatastoreSpec) string {
+	if spec.SQL == nil || spec.SQL.PasswordCommand == nil {
+		return ""
+	}
+
+	parts := []string{shellQuote(spec.SQL.PasswordCommand.Command)}
+	for _, arg := range spec.SQL.PasswordCommand.Args {
+		parts = append(parts, shellQuote(arg))
+	}
+
+	return fmt.Sprintf("export %s=$(%s)", spec.GetPasswordEnvVarName(), strings.Join(parts, " "))
+}
+
+// shellQuote wraps s in single quotes, escaping any embedded single quotes.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 func (b *SchemaScriptsConfigmapBuilder) getCassandraArgs(spec *v1beta1.DatastoreSpec) *orderedmap.OrderedMap[string, string] {
@@ -325,7 +354,7 @@ func (b *SchemaScriptsConfigmapBuilder) GetStoreCreateTemplate(spec *v1beta1.Dat
 	}
 
 	data := createDatabase{
-		baseData:       b.baseData(),
+		sqlBaseData:    b.sqlBaseData(spec),
 		Tool:           b.getStoreTool(storeType),
 		ConnectionArgs: b.argsMapToString(args),
 		DatabaseName:   spec.SQL.DatabaseName,
@@ -354,7 +383,7 @@ func (b *SchemaScriptsConfigmapBuilder) GetStoreSetupTemplate(spec *v1beta1.Data
 	}
 
 	data := setupSchemaData{
-		baseData:       b.baseData(),
+		sqlBaseData:    b.sqlBaseData(spec),
 		Tool:           b.getStoreTool(storeType),
 		ConnectionArgs: b.argsMapToString(args),
 		InitialVersion: "0.0",
@@ -383,7 +412,7 @@ func (b *SchemaScriptsConfigmapBuilder) GetStoreUpdateTemplate(spec *v1beta1.Dat
 	}
 
 	data := updateSchemaData{
-		baseData:       b.baseData(),
+		sqlBaseData:    b.sqlBaseData(spec),
 		Tool:           b.getStoreTool(storeType),
 		ConnectionArgs: b.argsMapToString(args),
 		SchemaDir:      b.computeSchemaDir(storeType, targetSchema),

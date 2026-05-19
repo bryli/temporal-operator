@@ -220,11 +220,16 @@ func (b *ConfigmapBuilder) Update(object client.Object) error {
 
 	archivalConfig, archivalNamespaceDefaults := b.buildArchivalConfig()
 
+	broadcastAddr := `{{ default .Env.POD_IP "0.0.0.0" }}`
+	if b.instance.Spec.Version.GreaterOrEqual(version.V1_31_0) {
+		broadcastAddr = `{{ default "0.0.0.0" (env "POD_IP") }}`
+	}
+
 	temporalCfg := config.Config{}
 	temporalCfg.Global = temporalconfig.Global{
 		Membership: temporalconfig.Membership{
 			MaxJoinDuration:  30 * time.Second,
-			BroadcastAddress: "{{ default .Env.POD_IP \"0.0.0.0\" }}",
+			BroadcastAddress: broadcastAddr,
 		},
 		Authorization: authorization.ToTemporalAuthorization(b.instance.Spec.Authorization),
 	}
@@ -321,9 +326,13 @@ func (b *ConfigmapBuilder) Update(object client.Object) error {
 	}
 
 	if b.instance.Spec.Metrics.IsEnabled() {
+		serviceTag := `{{ .Env.SERVICES }}`
+		if b.instance.Spec.Version.GreaterOrEqual(version.V1_31_0) {
+			serviceTag = `{{ env "SERVICES" }}`
+		}
 		temporalCfg.Global.Metrics = &metrics.Config{
 			ClientConfig: metrics.ClientConfig{
-				Tags: map[string]string{"type": "{{ .Env.SERVICES }}"},
+				Tags: map[string]string{"type": serviceTag},
 			},
 		}
 
@@ -445,13 +454,17 @@ func (b *ConfigmapBuilder) Update(object client.Object) error {
 		}
 	}
 
-	result, err := yaml.Marshal(temporalCfg)
+	result, err := marshalYAMLOmitNull(temporalCfg)
 	if err != nil {
 		return fmt.Errorf("failed marshaling temporal config: %w", err)
 	}
 
+	configContent := string(result)
+	if b.instance.Spec.Version.GreaterOrEqual(version.V1_31_0) {
+		configContent = "# enable-template\n" + configContent
+	}
 	configMap.Data = map[string]string{
-		"config_template.yaml": string(result),
+		"config_template.yaml": configContent,
 	}
 
 	if err := controllerutil.SetControllerReference(b.instance, configMap, b.scheme); err != nil {
@@ -459,4 +472,39 @@ func (b *ConfigmapBuilder) Update(object client.Object) error {
 	}
 
 	return nil
+}
+
+// marshalYAMLOmitNull marshals v to YAML, then strips all null-valued keys.
+// This is necessary because the upstream Temporal config structs lack `omitempty`
+// tags, causing nil pointer fields (e.g. cassandra, elasticsearch) to serialize
+// as "field: null". Temporal >= 1.31.0 uses gopkg.in/validator.v2 which walks
+// into these zero-value structs and fails validation on required fields.
+func marshalYAMLOmitNull(v interface{}) ([]byte, error) {
+	raw, err := yaml.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var generic interface{}
+	if err := yaml.Unmarshal(raw, &generic); err != nil {
+		return nil, err
+	}
+	stripNulls(generic)
+	return yaml.Marshal(generic)
+}
+
+func stripNulls(v interface{}) {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		for k, child := range val {
+			if child == nil {
+				delete(val, k)
+			} else {
+				stripNulls(child)
+			}
+		}
+	case []interface{}:
+		for _, item := range val {
+			stripNulls(item)
+		}
+	}
 }
