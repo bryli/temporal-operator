@@ -80,13 +80,22 @@ func (b *ConfigmapBuilder) Enabled() bool {
 
 func (b *ConfigmapBuilder) buildDatastoreConfig(store *v1beta1.DatastoreSpec) (*temporalconfig.DataStore, error) {
 	cfg := &temporalconfig.DataStore{}
+	usePasswordCommand := store.SQL != nil &&
+		store.SQL.PasswordCommand != nil &&
+		b.instance.Spec.Version.GreaterOrEqual(version.V1_31_0)
+
 	switch store.GetType() {
 	case v1beta1.PostgresSQLDatastore,
 		v1beta1.PostgresSQL12Datastore,
 		v1beta1.MySQLDatastore,
 		v1beta1.MySQL8Datastore:
 		cfg.SQL = persistence.NewSQLConfigFromDatastoreSpec(store)
-		cfg.SQL.Password = fmt.Sprintf("{{ .Env.%s }}", store.GetPasswordEnvVarName())
+		if usePasswordCommand {
+			cfg.SQL.Password = ""
+		} else {
+			cfg.SQL.Password = fmt.Sprintf("{{ .Env.%s }}", store.GetPasswordEnvVarName())
+			cfg.SQL.PasswordCommand = nil
+		}
 	case v1beta1.CassandraDatastore:
 		cfg.Cassandra = persistence.NewCassandraConfigFromDatastoreSpec(store)
 		cfg.Cassandra.Password = fmt.Sprintf("{{ .Env.%s }}", store.GetPasswordEnvVarName())
@@ -111,7 +120,7 @@ func (b *ConfigmapBuilder) buildPersistenceConfig() (*config.Persistence, error)
 	cfg.VisibilityStore = b.instance.Spec.Persistence.VisibilityStore.Name
 	cfg.DataStores = map[string]temporalconfig.DataStore{}
 
-	// Instroduced in >= 1.21.x
+	// Introduced in >= 1.21.x
 	if b.instance.Spec.Persistence.SecondaryVisibilityStore != nil {
 		cfg.SecondaryVisibilityStore = b.instance.Spec.Persistence.SecondaryVisibilityStore.Name
 	}
