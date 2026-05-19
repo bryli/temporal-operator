@@ -235,11 +235,17 @@ func (w *TemporalClusterWebhook) validateCluster(cluster *v1beta1.TemporalCluste
 		}
 	}
 
-	// Warn when passwordCommand is used without passwordSecretRef for schema jobs.
+	// Reject setting both passwordCommand and passwordSecretRef on the same datastore.
+	// They target different auth mechanisms (e.g. IAM vs static password) and the
+	// database user is typically configured for one or the other, not both.
 	for name, store := range cluster.Spec.Persistence.GetDatastoresMap() {
-		if store != nil && store.SQL != nil && store.SQL.PasswordCommand != nil && store.PasswordSecretRef == nil && !store.SkipCreate {
-			warns = append(warns,
-				fmt.Sprintf("Datastore %q uses passwordCommand without passwordSecretRef. Schema creation/migration jobs will not have database credentials. Set skipCreate to manage schema externally, or provide passwordSecretRef for schema operations.", name),
+		if store != nil && store.SQL != nil && store.SQL.PasswordCommand != nil && store.PasswordSecretRef != nil {
+			errs = append(errs,
+				field.Invalid(
+					field.NewPath("spec", "persistence", name),
+					"",
+					"passwordCommand and passwordSecretRef are mutually exclusive; set one or the other",
+				),
 			)
 		}
 	}
