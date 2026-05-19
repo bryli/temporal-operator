@@ -117,6 +117,14 @@ func (b *DeploymentBuilder) Update(object client.Object) error {
 			Name:  "SERVICES",
 			Value: b.serviceName,
 		},
+		{
+			Name:  "TEMPORAL_SERVICES",
+			Value: b.serviceName,
+		},
+		{
+			Name:  "TEMPORAL_SERVER_CONFIG_FILE_PATH",
+			Value: "/etc/temporal/config/config_template.yaml",
+		},
 	}
 
 	datastores := b.instance.Spec.Persistence.GetDatastores()

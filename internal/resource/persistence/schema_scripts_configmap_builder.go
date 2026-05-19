@@ -206,10 +206,17 @@ func (b *SchemaScriptsConfigmapBuilder) passwordCommandPrefix(spec *v1beta1.Data
 		return ""
 	}
 
-	parts := []string{spec.SQL.PasswordCommand.Command}
-	parts = append(parts, spec.SQL.PasswordCommand.Args...)
+	parts := []string{shellQuote(spec.SQL.PasswordCommand.Command)}
+	for _, arg := range spec.SQL.PasswordCommand.Args {
+		parts = append(parts, shellQuote(arg))
+	}
 
 	return fmt.Sprintf("export %s=$(%s)", spec.GetPasswordEnvVarName(), strings.Join(parts, " "))
+}
+
+// shellQuote wraps s in single quotes, escaping any embedded single quotes.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 func (b *SchemaScriptsConfigmapBuilder) getCassandraArgs(spec *v1beta1.DatastoreSpec) *orderedmap.OrderedMap[string, string] {

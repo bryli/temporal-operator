@@ -174,7 +174,7 @@ func TestPasswordCommandPrefix(t *testing.T) {
 			},
 		}
 		result := builder.passwordCommandPrefix(spec)
-		assert.Equal(t, `export TEMPORAL_DEFAULT_DATASTORE_PASSWORD=$(/usr/bin/aws rds generate-db-auth-token --hostname mydb.rds.amazonaws.com)`, result)
+		assert.Equal(t, `export TEMPORAL_DEFAULT_DATASTORE_PASSWORD=$('/usr/bin/aws' 'rds' 'generate-db-auth-token' '--hostname' 'mydb.rds.amazonaws.com')`, result)
 	})
 
 	t.Run("handles command with no args", func(t *testing.T) {
@@ -187,6 +187,34 @@ func TestPasswordCommandPrefix(t *testing.T) {
 			},
 		}
 		result := builder.passwordCommandPrefix(spec)
-		assert.Equal(t, `export TEMPORAL_VISIBILITY_DATASTORE_PASSWORD=$(/usr/local/bin/get-token)`, result)
+		assert.Equal(t, `export TEMPORAL_VISIBILITY_DATASTORE_PASSWORD=$('/usr/local/bin/get-token')`, result)
+	})
+
+	t.Run("handles args with spaces and special characters", func(t *testing.T) {
+		spec := &v1beta1.DatastoreSpec{
+			Name: "default",
+			SQL: &v1beta1.SQLSpec{
+				PasswordCommand: &v1beta1.PasswordCommandSpec{
+					Command: "/bin/sh",
+					Args:    []string{"-c", "echo -n test"},
+				},
+			},
+		}
+		result := builder.passwordCommandPrefix(spec)
+		assert.Equal(t, `export TEMPORAL_DEFAULT_DATASTORE_PASSWORD=$('/bin/sh' '-c' 'echo -n test')`, result)
+	})
+
+	t.Run("handles args with embedded single quotes", func(t *testing.T) {
+		spec := &v1beta1.DatastoreSpec{
+			Name: "default",
+			SQL: &v1beta1.SQLSpec{
+				PasswordCommand: &v1beta1.PasswordCommandSpec{
+					Command: "/bin/sh",
+					Args:    []string{"-c", "echo it's working"},
+				},
+			},
+		}
+		result := builder.passwordCommandPrefix(spec)
+		assert.Equal(t, `export TEMPORAL_DEFAULT_DATASTORE_PASSWORD=$('/bin/sh' '-c' 'echo it'\''s working')`, result)
 	})
 }

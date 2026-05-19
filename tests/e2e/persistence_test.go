@@ -292,6 +292,53 @@ func TestPersistence(t *testing.T) {
 				}
 			},
 		},
+		"postgres12 persistence with passwordCommand": {
+			upgradePath:        []string{},
+			deployDependencies: []deployDependencyFunc{deployAndWaitForPostgres},
+			cluster: func(_ context.Context, _ *envconf.Config, namespace string) *v1beta1.TemporalCluster {
+				connectAddr := fmt.Sprintf("postgres.%s:5432", namespace)
+
+				return &v1beta1.TemporalCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test",
+						Namespace: namespace,
+					},
+					Spec: v1beta1.TemporalClusterSpec{
+						NumHistoryShards:           1,
+						JobTTLSecondsAfterFinished: &jobTTL,
+						Version:                    version.MustNewVersionFromString("1.31.0"),
+						Persistence: v1beta1.TemporalPersistenceSpec{
+							DefaultStore: &v1beta1.DatastoreSpec{
+								SQL: &v1beta1.SQLSpec{
+									User:            "temporal",
+									PluginName:      "postgres12",
+									DatabaseName:    "temporal",
+									ConnectAddr:     connectAddr,
+									ConnectProtocol: "tcp",
+									PasswordCommand: &v1beta1.PasswordCommandSpec{
+										Command: "/bin/sh",
+										Args:    []string{"-c", "echo -n test"},
+									},
+								},
+							},
+							VisibilityStore: &v1beta1.DatastoreSpec{
+								SQL: &v1beta1.SQLSpec{
+									User:            "temporal",
+									PluginName:      "postgres12",
+									DatabaseName:    "temporal_visibility",
+									ConnectAddr:     connectAddr,
+									ConnectProtocol: "tcp",
+									PasswordCommand: &v1beta1.PasswordCommandSpec{
+										Command: "/bin/sh",
+										Args:    []string{"-c", "echo -n test"},
+									},
+								},
+							},
+						},
+					},
+				}
+			},
+		},
 		"cassandra persistence": {
 			upgradePath:        defaultUpgradePath,
 			deployDependencies: []deployDependencyFunc{deployAndWaitForPostgres, deployAndWaitForCassandra},
@@ -343,7 +390,7 @@ func TestPersistence(t *testing.T) {
 	featureTable := []features.Feature{}
 
 	for name, testCase := range tests {
-		if name != "cassandra persistence" {
+		if name != "cassandra persistence" && name != "postgres12 persistence with passwordCommand" {
 			continue
 		}
 		test := testCase
